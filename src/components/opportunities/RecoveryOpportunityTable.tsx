@@ -1,9 +1,10 @@
 import React from 'react';
-import { Eye, SearchX } from 'lucide-react';
+import { Eye, SearchX, Play, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { OpportunityItem } from '../../data/mockData';
 import { RiskScore } from './RiskScore';
 import { PriorityBadge } from './PriorityBadge';
 import { RecoveryProbability } from './RecoveryProbability';
+import { getRecoveryGuardrails } from '../../utils/recoveryScoring';
 
 interface RecoveryOpportunityTableProps {
   opportunities: OpportunityItem[];
@@ -38,98 +39,147 @@ export const RecoveryOpportunityTable: React.FC<RecoveryOpportunityTableProps> =
             <thead className="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-800">
               <tr>
                 <th className="py-3.5 px-5">Customer</th>
-                <th className="py-3.5 px-5">Issue</th>
+                <th className="py-3.5 px-5">Diagnosed Issue</th>
                 <th className="py-3.5 px-5">Amount at Risk</th>
                 <th className="py-3.5 px-5">Risk Score</th>
-                <th className="py-3.5 px-5">Recovery Probability</th>
-                <th className="py-3.5 px-5">Priority</th>
-                <th className="py-3.5 px-5">Recommended Action</th>
-                <th className="py-3.5 px-5">Attempts</th>
+                <th className="py-3.5 px-5">Recovery Prob.</th>
+                <th className="py-3.5 px-5">Expected Recovery</th>
+                <th className="py-3.5 px-5">Recommended Action & Why</th>
                 <th className="py-3.5 px-5">Status</th>
-                <th className="py-3.5 px-5 text-right">Action</th>
+                <th className="py-3.5 px-5 text-right">Decision Engine</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">
-              {opportunities.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
-                  {/* Customer */}
-                  <td className="py-4 px-5">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-white text-sm">{item.customer}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {item.id} • {item.customerType}
+              {opportunities.map((item) => {
+                const guardrails = getRecoveryGuardrails(item);
+                const expectedValue = item.expectedRecovery || `₹${Math.round(item.rawAmount * (item.probability / 100)).toLocaleString('en-IN')}`;
+                const whyExplanation = item.whyThisAction || item.aiDiagnosis || 'Customer track record and failure analysis support this recovery action.';
+
+                return (
+                  <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                    {/* Customer */}
+                    <td className="py-4 px-5">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-white text-sm">{item.customer}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {item.id} • {item.customerType}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Issue */}
+                    <td className="py-4 px-5">
+                      <span className="px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-200 font-medium text-[11px]">
+                        {item.issue}
                       </span>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Issue */}
-                  <td className="py-4 px-5">
-                    <span className="px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-200 font-medium text-[11px]">
-                      {item.issue}
-                    </span>
-                  </td>
+                    {/* Amount at Risk */}
+                    <td className="py-4 px-5 font-mono font-bold text-rose-400 text-sm">
+                      {item.amountAtRisk}
+                    </td>
 
-                  {/* Amount at Risk */}
-                  <td className="py-4 px-5 font-mono font-bold text-rose-400 text-sm">
-                    {item.amountAtRisk}
-                  </td>
+                    {/* Risk Score */}
+                    <td className="py-4 px-5">
+                      <RiskScore score={item.riskScore} />
+                    </td>
 
-                  {/* Risk Score */}
-                  <td className="py-4 px-5">
-                    <RiskScore score={item.riskScore} />
-                  </td>
+                    {/* Recovery Probability */}
+                    <td className="py-4 px-5">
+                      <RecoveryProbability probability={item.probability} />
+                    </td>
 
-                  {/* Recovery Probability */}
-                  <td className="py-4 px-5">
-                    <RecoveryProbability probability={item.probability} />
-                  </td>
+                    {/* Expected Recovery Amount */}
+                    <td className="py-4 px-5">
+                      <div className="flex flex-col">
+                        <span className="font-mono font-bold text-emerald-400 text-sm">
+                          {expectedValue}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-mono">
+                          ({item.probability}% expected)
+                        </span>
+                      </div>
+                    </td>
 
-                  {/* Priority */}
-                  <td className="py-4 px-5">
-                    <PriorityBadge priority={item.priority} />
-                  </td>
+                    {/* Recommended Action & Why */}
+                    <td className="py-4 px-5 max-w-xs">
+                      <div className="space-y-1">
+                        <span className="font-semibold text-indigo-300 bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-800/40 text-[11px] inline-block">
+                          {item.recommendedAction}
+                        </span>
+                        <p className="text-[10px] text-slate-400 leading-tight line-clamp-2 italic">
+                          Why: {whyExplanation}
+                        </p>
+                      </div>
+                    </td>
 
-                  {/* Recommended Action */}
-                  <td className="py-4 px-5">
-                    <span className="font-semibold text-indigo-300 bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-800/40 text-[11px] inline-block">
-                      {item.recommendedAction}
-                    </span>
-                  </td>
+                    {/* Status */}
+                    <td className="py-4 px-5">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          item.status === 'New'
+                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                            : item.status === 'In Progress'
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            : item.status === 'Recovered'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </td>
 
-                  {/* Attempts */}
-                  <td className="py-4 px-5 font-mono font-semibold text-slate-300">
-                    {item.attempts}
-                  </td>
+                    {/* Action Buttons */}
+                    <td className="py-4 px-5 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => onSelectOpportunity(item)}
+                          disabled={!guardrails.isActionAllowed}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center space-x-1.5 shadow-sm ${
+                            item.status === 'Recovered'
+                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 cursor-default'
+                              : !guardrails.isActionAllowed
+                              ? 'bg-rose-950/60 text-rose-400 border border-rose-800/40 cursor-default'
+                              : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
+                          }`}
+                        >
+                          {item.status === 'Recovered' ? (
+                            <>
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>Recovered ✓</span>
+                            </>
+                          ) : guardrails.isHardFailure ? (
+                            <>
+                              <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+                              <span>Hard Failure</span>
+                            </>
+                          ) : !guardrails.isActionAllowed ? (
+                            <>
+                              <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+                              <span>Escalated (3/3)</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-3.5 w-3.5 fill-white" />
+                              <span>Execute Recovery</span>
+                            </>
+                          )}
+                        </button>
 
-                  {/* Status */}
-                  <td className="py-4 px-5">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                        item.status === 'New'
-                          ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                          : item.status === 'In Progress'
-                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          : item.status === 'Recovered'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-
-                  {/* Action Button */}
-                  <td className="py-4 px-5 text-right">
-                    <button
-                      onClick={() => onSelectOpportunity(item)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors inline-flex items-center space-x-1.5 shadow-sm"
-                    >
-                      <Eye className="h-3.5 w-3.5 text-indigo-400" />
-                      <span>View Details</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                        <button
+                          onClick={() => onSelectOpportunity(item)}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors inline-flex items-center space-x-1 shadow-sm"
+                          title="View Details & Decision Matrix"
+                        >
+                          <Eye className="h-3.5 w-3.5 text-indigo-400" />
+                          <span className="hidden sm:inline">Details</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

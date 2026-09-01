@@ -8,7 +8,8 @@ import {
   Activity,
   ShieldAlert,
   Flame,
-  CheckCircle2
+  CheckCircle2,
+  Play
 } from 'lucide-react';
 import {
   OpportunityItem,
@@ -22,6 +23,7 @@ import { MetricCard } from '../dashboard/MetricCard';
 import { RecoveryFilters, SortByOption } from './RecoveryFilters';
 import { RecoveryOpportunityTable } from './RecoveryOpportunityTable';
 import { OpportunityDetailsModal } from './OpportunityDetailsModal';
+import { BatchRecoveryModal } from '../dashboard/BatchRecoveryModal';
 
 export const OpportunitiesView: React.FC = () => {
   // Dynamically scored opportunities from centralized RecoveryContext
@@ -34,8 +36,9 @@ export const OpportunitiesView: React.FC = () => {
   const [status, setStatus] = useState<OpportunityStatusFilter>('All');
   const [sortBy, setSortBy] = useState<SortByOption>('priority_desc');
 
-  // Modal State
+  // Modal States
   const [selectedOpportunity, setSelectedOpportunity] = useState<OpportunityItem | null>(null);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
 
   // Dynamic Summary KPIs based on current reactive opportunities
   const newOpportunitiesCount = useMemo(() => {
@@ -180,17 +183,32 @@ export const OpportunitiesView: React.FC = () => {
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1">
-            <h2 className="text-xl lg:text-2xl font-extrabold text-white tracking-tight">
-              Recovery Opportunities
-            </h2>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-xl lg:text-2xl font-extrabold text-white tracking-tight">
+                Recovery Opportunities
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold border border-indigo-500/30 font-mono">
+                AI Decision Engine v2.0
+              </span>
+            </div>
             <p className="text-sm text-slate-300">
-              Identify and prioritize revenue that may be recovered.
+              AI-driven risk scoring, recovery probability, diagnosed issues & recommended actions.
             </p>
           </div>
 
-          <div className="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold self-start md:self-auto shrink-0 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-            <span>{newOpportunitiesCount} New Opportunities</span>
+          <div className="flex flex-wrap items-center gap-3 self-start md:self-auto shrink-0">
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center space-x-2 border border-indigo-400/30 group cursor-pointer"
+            >
+              <Play className="h-4 w-4 fill-white group-hover:scale-110 transition-transform" />
+              <span>Run Recovery Batch</span>
+            </button>
+
+            <div className="flex items-center space-x-2.5 px-3.5 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold shadow-sm">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+              <span>{newOpportunitiesCount} AI Recommendations Active</span>
+            </div>
           </div>
         </div>
       </div>
@@ -323,6 +341,12 @@ export const OpportunitiesView: React.FC = () => {
       <OpportunityDetailsModal
         opportunity={selectedOpportunity}
         onClose={() => setSelectedOpportunity(null)}
+      />
+
+      {/* 7. Batch Recovery Modal */}
+      <BatchRecoveryModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
       />
     </div>
   );

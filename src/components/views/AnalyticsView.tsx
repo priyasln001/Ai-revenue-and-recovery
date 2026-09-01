@@ -100,12 +100,9 @@ export const AnalyticsView: React.FC = () => {
   ).length;
   const totalCustomersCount = CUSTOMERS_DATA.length;
 
-  // Mathematically calculated recovery rate: Recovered / (Recovered + At Risk) * 100
+  // Centralized Recovery Rate: (Revenue Recovered / Total Revenue Initially At Risk) * 100
   const computedRecoveryRate = useMemo(() => {
-    const totalRecoverable = metrics.revenueRecovered + metrics.revenueAtRisk;
-    if (totalRecoverable <= 0) return '0.0%';
-    const rate = (metrics.revenueRecovered / totalRecoverable) * 100;
-    return `${rate.toFixed(1)}%`;
+    return metrics.formattedRate;
   }, [metrics]);
 
   // 2. Chart 1 — Recovery Status Distribution

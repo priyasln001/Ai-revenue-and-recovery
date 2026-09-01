@@ -50,12 +50,101 @@ export interface ScoringResult {
   riskScore: number;
   riskLevel: RiskLevel;
   recoveryProbability: number;
+  expectedRecoveryAmount: number;
+  whyThisAction: string;
   priorityScore: number;
   priorityLevel: PriorityTier;
   recommendedAction: string;
   explanation: string;
   factors: FactorBreakdown;
 }
+
+export interface GuardrailDetails {
+  maxAttempts: number;
+  currentAttempts: number;
+  remainingAttempts: number;
+  statusText: string;
+  statusBadge: 'success' | 'warning' | 'danger' | 'info';
+  nextAllowedAction: string;
+  stoppingReason?: string;
+  isActionAllowed: boolean;
+  isHardFailure: boolean;
+}
+
+/**
+ * Recovery Guardrails & Stopping Rules Evaluator
+ */
+export const getRecoveryGuardrails = (opp: {
+  attempts: number;
+  status: string;
+  recommendedAction: string;
+  issue: string;
+}): GuardrailDetails => {
+  const maxAttempts = 3;
+  const currentAttempts = opp.attempts || 0;
+  const remainingAttempts = Math.max(0, maxAttempts - currentAttempts);
+  
+  const isHardFailure =
+    opp.recommendedAction === 'Stop' ||
+    opp.issue.toLowerCase().includes('stolen') ||
+    opp.issue.toLowerCase().includes('lost') ||
+    opp.issue.toLowerCase().includes('hard decline') ||
+    opp.issue.toLowerCase().includes('fraud');
+
+  if (opp.status === 'Recovered') {
+    return {
+      maxAttempts,
+      currentAttempts,
+      remainingAttempts: 0,
+      statusText: 'Recovered ✓',
+      statusBadge: 'success',
+      nextAllowedAction: 'None (Recovery Completed)',
+      stoppingReason: 'Recovery completed successfully. Further retries disabled.',
+      isActionAllowed: false,
+      isHardFailure: false,
+    };
+  }
+
+  if (isHardFailure) {
+    return {
+      maxAttempts,
+      currentAttempts,
+      remainingAttempts: 0,
+      statusText: 'Escalation Required (Hard Failure)',
+      statusBadge: 'danger',
+      nextAllowedAction: 'Manual RevOps Review / Escalation',
+      stoppingReason: 'Hard/permanent failure detected (Stolen/Lost Card code). Automated retries halted for compliance.',
+      isActionAllowed: false,
+      isHardFailure: true,
+    };
+  }
+
+  if (currentAttempts >= maxAttempts || opp.status === 'Escalated') {
+    return {
+      maxAttempts,
+      currentAttempts: Math.max(maxAttempts, currentAttempts),
+      remainingAttempts: 0,
+      statusText: 'Escalation Required',
+      statusBadge: 'danger',
+      nextAllowedAction: 'Escalate to RevOps Team for Direct Call',
+      stoppingReason: 'Maximum recovery attempts reached (3/3). Automated retries halted.',
+      isActionAllowed: false,
+      isHardFailure: false,
+    };
+  }
+
+  return {
+    maxAttempts,
+    currentAttempts,
+    remainingAttempts,
+    statusText: currentAttempts === 0 ? 'Retry Available' : `Retry Available (${remainingAttempts} left)`,
+    statusBadge: currentAttempts === 0 ? 'info' : 'warning',
+    nextAllowedAction: opp.recommendedAction,
+    stoppingReason: undefined,
+    isActionAllowed: true,
+    isHardFailure: false,
+  };
+};
 
 /**
  * Clamp helper to ensure values remain strictly within [min, max]
@@ -481,7 +570,7 @@ export const scoreRecoveryOpportunity = (
     daysOverdue
   );
 
-  // 5. Generate Explanation
+  // 5. Generate Explanation & Decision Engine Rationale
   const explanation = getScoreExplanation(
     {
       riskScore,
@@ -495,10 +584,15 @@ export const scoreRecoveryOpportunity = (
     caseData
   );
 
+  const expectedRecoveryAmount = Math.round(rawAmount * (recoveryProbability / 100));
+  const whyThisAction = caseData.aiDiagnosis || `${caseData.type?.replace(/_/g, ' ')} detected; ${recommendedAction.toLowerCase()} recommended.`;
+
   return {
     riskScore,
     riskLevel,
     recoveryProbability,
+    expectedRecoveryAmount,
+    whyThisAction,
     priorityScore,
     priorityLevel,
     recommendedAction,
@@ -534,6 +628,10 @@ export const getScoredRecoveryOpportunities = (): OpportunityItem[] => {
     // Priority mapping (Critical/High/Medium/Low)
     const priorityLabel = (scored.priorityLevel === 'Critical' ? 'High' : scored.priorityLevel) as OpportunityItem['priority'];
 
+    const rawExpectedRecovery = Math.round(caseItem.amountAtRisk * (scored.recoveryProbability / 100));
+    const expectedRecovery = `₹${rawExpectedRecovery.toLocaleString('en-IN')}`;
+    const whyThisAction = caseItem.aiDiagnosis || scored.whyThisAction;
+
     return {
       id: caseItem.id,
       transactionId: caseItem.transactionId || caseItem.invoiceId || caseItem.subscriptionId || `REF-${caseItem.id}`,
@@ -548,6 +646,9 @@ export const getScoredRecoveryOpportunities = (): OpportunityItem[] => {
       riskScore: scored.riskScore,
       riskLevel: scored.riskLevel,
       probability: scored.recoveryProbability,
+      expectedRecovery,
+      rawExpectedRecovery,
+      whyThisAction,
       priority: priorityLabel,
       priorityScore: scored.priorityScore,
       priorityLevel: scored.priorityLevel,

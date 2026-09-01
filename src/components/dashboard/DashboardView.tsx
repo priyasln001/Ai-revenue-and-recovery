@@ -1,16 +1,20 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   TrendingUp,
   Activity,
-  Bot
+  Bot,
+  Play,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { MetricCard } from './MetricCard';
 import { RevenueChartCard } from './RevenueChartCard';
 import { FunnelCard } from './FunnelCard';
 import { InterventionBreakdownCard } from './InterventionBreakdownCard';
 import { RecentActivityTable } from './RecentActivityTable';
+import { BatchRecoveryModal } from './BatchRecoveryModal';
 import { KpiMetric } from '../../data/mockData';
 import { NavItemKey } from '../../types';
 import { useRecovery } from '../../context/RecoveryContext';
@@ -21,6 +25,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTab }) => {
   const { metrics, recentActivities, totalRecoveredDelta } = useRecovery();
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
 
   const dynamicKpis: KpiMetric[] = useMemo(() => {
     return [
@@ -46,7 +51,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTab }) => 
         id: 'kpi-rate',
         title: 'Recovery Rate',
         value: metrics.formattedRate,
-        description: 'Recovered / Revenue at Risk × 100',
+        description: 'Recovered / Initial Revenue at Risk',
         trend: totalRecoveredDelta > 0 ? 'Measured' : '+3.1%',
         isPositive: true,
         accentColor: 'indigo',
@@ -93,14 +98,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTab }) => 
             </p>
           </div>
 
-          {/* AI Agent Status Visual Indicator */}
-          <div className="flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold self-start md:self-auto shrink-0 shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <Bot className="h-3.5 w-3.5" />
-            <span>AI Agent: Monitoring</span>
+          {/* Action Header Buttons */}
+          <div className="flex flex-wrap items-center gap-3 self-start md:self-auto shrink-0">
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center space-x-2 border border-indigo-400/30 group cursor-pointer"
+            >
+              <Play className="h-4 w-4 fill-white group-hover:scale-110 transition-transform" />
+              <span>Run Recovery Batch</span>
+            </button>
+
+            {/* AI Agent Status Visual Indicator */}
+            <div className="flex items-center space-x-2.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <Bot className="h-3.5 w-3.5" />
+              <span>AI Agent: Monitoring</span>
+            </div>
           </div>
         </div>
       </div>
@@ -135,6 +151,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onSelectTab }) => 
       <RecentActivityTable
         activities={recentActivities}
         onNavigateToTransactions={() => onSelectTab?.('transactions')}
+      />
+
+      {/* Batch Recovery Modal */}
+      <BatchRecoveryModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
+        onNavigateToAudit={() => onSelectTab?.('audit')}
       />
     </div>
   );
